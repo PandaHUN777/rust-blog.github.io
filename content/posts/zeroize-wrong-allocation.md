@@ -1,7 +1,7 @@
 ---
-title: "ลึกสุดใจกับ Memory Leak: ทำไม wipe_field ใน Rust ถึงล้างรหัสผ่านผิดตัว?"
+title: "ลึกสุดใจกับ Memory Leak"
 date: "2026-09-28"
-description: "ผ่า Memory ของ Rust ทีละไบต์จากเคสจริงในโปรเจกต์ drugitems: ทำไม get_untracked() ถึงทำให้ zeroize ผิดก้อน พร้อมทดลองบน allocator จริงทั้ง macOS และ WASM"
+description: "ทำไม get_untracked() ถึงทำให้ zeroize ผิดก้อน"
 tags: [rust, security, wasm]
 author: "suradet-ps"
 ---
