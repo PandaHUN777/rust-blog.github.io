@@ -110,7 +110,8 @@ unable to verify that `sha256 v1.6.0` is the same as when the lockfile was gener
 - 07:11 อัปเดตเป็น `proc-macro1@1.0.107` ที่มีโค้ดอันตรายใน `build.rs`
 - 07:15 บัญชีของ David Roundy ถูกใช้ publish `arrayref@0.3.10` ที่เพิ่ม dependency `proc-macro1` เข้ามา **ทั้งที่ `arrayref` ไม่เคยมี dependency เพิ่มมา 10 ปี** พร้อมกับ yank เวอร์ชัน 0.3.5–0.3.9 ทิ้ง เพื่อบังคับให้ `cargo update` เลือกเวอร์ชันอันตราย (เทคนิคนี้ทำให้ warning เรื่อง yank กลายเป็นอาวุธ ซึ่งน่ารู้มาก)
 - 07:34 และ 07:37 เผยแพร่ `internment@0.8.7` กับ `append-only-vec@0.1.9` ด้วยวิธีเดียวกันครบสามตัวใน 23 นาที
-- 07:54 มีรายงานถึงทีม Rust, 08:03 ลบ `proc-macro1`, 08:41–09:25 ลบเวอร์ชันอันตรายทั้งหมดออกจาก index หน้าต่างโจมตีรวมประมาณ 2 ชั่วโมง
+- 07:54 มีรายงานถึงทีม Rust ([advisory-db#3161](https://github.com/rustsec/advisory-db/issues/3161)) และ 08:03 ลบ `proc-macro1`
+- 08:41 ลบ `arrayref@0.3.10` (ออนไลน์ 86 นาที), 09:04 ลบ `internment@0.8.7` (90 นาที) และ 09:25 ลบ `append-only-vec@0.1.9` (107 นาที)
 
 **ทำไมมันถึงอันตรายมาก**
 
