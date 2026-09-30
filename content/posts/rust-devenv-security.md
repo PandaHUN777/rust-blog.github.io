@@ -97,7 +97,7 @@ unable to verify that `sha256 v1.6.0` is the same as when the lockfile was gener
 - ฝึกวินัย lockfile: ใช้ `cargo build --locked` หรือ `--frozen` ใน CI เสมอ ถ้าต้องอัปเดตให้ใช้ `cargo update -p <crate> --precise <version>` แล้ว **อ่าน diff ของ `Cargo.lock`** ทุกครั้ง
 - `cargo install` ก็รัน build script เหมือนกัน จึงควรใช้ `cargo install --locked` และระบุเวอร์ชันตายตัว
 - **ตรวจ build script เป็นพิเศษ** dependency ที่เพิ่ม `build-dependencies` ด้าน network อย่าง `ureq`/`reqwest`/`rustls` ทั้งที่ไม่มีเหตุต้องใช้ ถือเป็นสัญญาณอันตรายทันที ตรวจได้จาก Code tab ของ crates.io หรือ `cargo vendor` แล้ว grep
-- ถ้าอยากรัดกุมระดับ ACL มี [`cackle`](https://github.com/cackle-rs/cackle) ที่กำหนดได้ว่า crate ไหนเรียก API อะไรได้บ้าง และรัน build script ใน bubblewrap sandbox ได้ ส่วน cargo เองกำลังทดลอง [`[host] runner`](https://github.com/rust-lang/cargo/issues/16591) (unstable, ต้นปี 2026) ให้ห่อการรัน build script ด้วย sandbox ภายนอกได้ และมี[ข้อเสนอ explicit opt-in](https://github.com/rust-lang/cargo/issues/17408) ให้ปฏิเสธ build script ของ dependency ทั้งหมดยกเว้นที่อนุญาต (สิงหาคม 2026) — ยังไม่ stable ทั้งคู่ แต่ทิศทางชัดว่าเรื่องนี้จะกลายเป็น feature ของ cargo ในอนาคต
+- ถ้าอยากรัดกุมระดับ ACL มี [`cackle`](https://github.com/cackle-rs/cackle) ที่กำหนดได้ว่า crate ไหนเรียก API อะไรได้บ้าง และรัน build script ใน bubblewrap sandbox ได้ ส่วน cargo เองกำลังทดลอง [`[host] runner`](https://github.com/rust-lang/cargo/issues/16591) (unstable, ต้นปี 2026) ให้ห่อการรัน build script ด้วย sandbox ภายนอกได้ และมี[ข้อเสนอ explicit opt-in](https://github.com/rust-lang/cargo/issues/17408) ให้ปฏิเสธ build script ของ dependency ทั้งหมดยกเว้นที่อนุญาต (สิงหาคม 2026) ทั้งคู่ยังไม่ stable แต่ทิศทางชัดว่าเรื่องนี้จะกลายเป็น feature ของ cargo ในอนาคต
 
 ## กรณีศึกษา: arrayref กับคืนวันที่ 20 สิงหาคม 2026
 
@@ -121,7 +121,7 @@ unable to verify that `sha256 v1.6.0` is the same as when the lockfile was gener
 1. **การติดตั้ง dependency กับการรันโค้ดของคนอื่นเป็นเรื่องเดียวกัน** เพราะ build script รันตอน compile ด้วยสิทธิ์เดียวกับเรา ถ้า build ในเครื่องที่มี SSH key, cloud credential หรือ token ของ CI นั่นคือสิ่งที่มัลแวร์มองเห็น
 2. **yank ไม่ใช่สัญญาณให้อัปเกรดแบบไม่ดู** เหตุการณ์นี้ใช้ yank เป็นกลไกบังคับอัปเกรดโดยตรง ถ้าเห็น crate อายุสิบปีถูก yank หลายเวอร์ชันพร้อมกัน ให้หยุดแล้วตรวจก่อน
 3. **CI ที่ไม่ใช้ `--locked` คือความเสี่ยง** ถ้า runner สร้าง lockfile ใหม่ทุกครั้ง ชั่วโมงที่เกิดเหตุจะกลายเป็นชั่วโมงที่ทุก pipeline เสี่ยงเท่ากันหมด
-4. ถ้าสงสัยว่าติด ให้ตรวจ `Cargo.lock`, pin กลับไปเวอร์ชันปลอดภัย (`arrayref = "=0.3.9"`), ลบไฟล์ที่ถูก drop, **rotate credential ทุกตัวที่เครื่องนั้นเข้าถึงได้** และ rebuild artifact จากเครื่องที่สะอาด — RustSec ออก advisory ไว้ครบคือ [RUSTSEC-2026-0260](https://rustsec.org/advisories/RUSTSEC-2026-0260.html) (arrayref), 0266 (internment), 0262 (append-only-vec) และ 0265 (proc-macro1) ส่วน NVD ให้คะแนน CVSS 9.8 กับ [CVE-2026-77649](https://nvd.nist.gov/vuln/detail/cve-2026-77649) ด้วย
+4. ถ้าสงสัยว่าติด ให้ตรวจ `Cargo.lock`, pin กลับไปเวอร์ชันปลอดภัย (`arrayref = "=0.3.9"`), ลบไฟล์ที่ถูก drop, **rotate credential ทุกตัวที่เครื่องนั้นเข้าถึงได้** และ rebuild artifact จากเครื่องที่สะอาด และ RustSec ออก advisory ไว้ครบคือ [RUSTSEC-2026-0260](https://rustsec.org/advisories/RUSTSEC-2026-0260.html) (arrayref), 0266 (internment), 0262 (append-only-vec) และ 0265 (proc-macro1) ส่วน NVD ให้คะแนน CVSS 9.8 กับ [CVE-2026-77649](https://nvd.nist.gov/vuln/detail/cve-2026-77649) ด้วย
 
 ## Rustfmt
 
@@ -168,7 +168,7 @@ Clippy มีกลุ่ม lint ที่ทำงานต่างกัน 
 - **`clippy::macro_metavars_in_unsafe`** จับ macro ที่ยอมให้ผู้เรียกแอบใส่โค้ดเข้า unsafe block โดยไม่ต้องเขียน unsafe เอง
 - **`clippy::unsafe_derive_deserialize`** เตือนการ derive `Deserialize` ให้ type ที่มี invariant ด้านความปลอดภัย เพราะ deserialization สร้างค่าจากข้อมูลที่ไม่เชื่อถือ
 
-เปิดใช้ได้ทั้งใน `Cargo.toml` และ `clippy.toml` — ที่สำคัญคือ Clippy ตรวจแค่ workspace ของเรา ไม่สแกน dependency ให้ ดังนั้นมันเป็นด่านของ**โค้ดที่เราเขียน** ไม่ใช่เครื่องมือกัน supply chain
+เปิดใช้ได้ทั้งใน `Cargo.toml` และ `clippy.toml` แต่ที่สำคัญคือ Clippy ตรวจแค่ workspace ของเรา ไม่สแกน dependency ให้ ดังนั้นมันเป็นด่านของ**โค้ดที่เราเขียน** ไม่ใช่เครื่องมือกัน supply chain
 
 ### 2026: safety-critical lints กำลังจะเข้า Clippy
 
@@ -199,21 +199,21 @@ $ cargo clippy --all-targets --all-features -- -D warnings
 
 ถ้าจะสรุปเป็นชุดปฏิบัติที่ทำได้จริงวันนี้
 
-- **pin ให้มากที่สุด** — `rust-toolchain.toml`, `Cargo.lock`, เวอร์ชันของ GitHub Action (แบบ commit SHA) และ `rustfmt.toml` ให้ตรงกันทั้งเครื่องและ CI
+- **pin ให้มากที่สุด** ทั้ง `rust-toolchain.toml`, `Cargo.lock`, เวอร์ชันของ GitHub Action (แบบ commit SHA) และ `rustfmt.toml` ให้ตรงกันทั้งเครื่องและ CI
 - **บังคับ `--locked` ใน CI** และอ่าน diff ของ lockfile ทุกครั้งที่อัปเดต dependency
 - **ให้ cargo audit / cargo deny เป็นด่านบังคับ** และติดตาม RustSec RSS เพราะนโยบายใหม่ของ crates.io ส่งสัญญาณผ่านช่องทางนั้นเป็นหลัก
 - **ถือว่า build script คือโค้ดที่รันบนเครื่องเรา** ตรวจ `build.rs` และ `build-dependencies` ของทุก dependency ใหม่ และถ้าสงสัยให้ build ใน container/VM หรือ sandbox
 - **ให้ clippy กับ rustfmt ทำงานอัตโนมัติใน CI** แล้วเก็บสมองไว้ใช้กับการ review logic และ unsafe ที่เหลือ
-- **อย่ารอให้ rustup ตรวจลายเซ็นเสร็จ** — TUF mirroring และ signing เป็นงานระยะยาว ระหว่างนี้ใช้ installer ที่ตรวจ GPG ได้ หรือ package manager ของ OS และอัปเดต stable สม่ำเสมอ
+- **อย่ารอให้ rustup ตรวจลายเซ็นเสร็จ** เพราะ TUF mirroring และ signing เป็นงานระยะยาว ระหว่างนี้ใช้ installer ที่ตรวจ GPG ได้ หรือ package manager ของ OS และอัปเดต stable สม่ำเสมอ
 
 สำหรับซอฟต์แวร์สุขภาพที่ผมเขียนอยู่ ข้อสุดท้ายเกี่ยวกับ build script นี้สำคัญเป็นพิเศษ เพราะเครื่องที่ build คือเครื่องที่มี credential ของระบบจริงอยู่เต็มไปหมด และการ rotate credential ทั้งหมดเพราะเผลอ `cargo update` ในวันที่โชคร้าย ก็ไม่ใช่ราคาที่เราอยากจ่ายเท่ากับการใส่ `--locked` ตั้งแต่แรก
 
 ## อ้างอิง
 
-- [Secure Rust Guidelines — Development environment (ANSSI)](https://anssi-fr.github.io/rust-guide/devenv.html) (บทต้นทาง, Rules DENV-STABLE, DENV-TIERS, DENV-CARGO-LOCK, DENV-CARGO-OPTS, DENV-CARGO-ENVVARS, DENV-FORMAT, DENV-LINTER, DENV-AUTOFIX)
+- [Secure Rust Guidelines: Development environment (ANSSI)](https://anssi-fr.github.io/rust-guide/devenv.html) (บทต้นทาง, Rules DENV-STABLE, DENV-TIERS, DENV-CARGO-LOCK, DENV-CARGO-OPTS, DENV-CARGO-ENVVARS, DENV-FORMAT, DENV-LINTER, DENV-AUTOFIX)
 - [Rustup Security](https://rust-lang.github.io/rustup/security.html) และ [rustup update: แผนรุ่น 1.30](https://blog.rust-lang.org/inside-rust/2026/07/03/rustup-update-1.30/)
 - [Rust Project Goal 2026: Implement Verifiable Mirroring Prototype (TUF)](https://goals.rust-lang.org/2026/mirroring.html)
-- [Ferrocene — qualified Rust toolchain](https://ferrocene.dev/) และ [Ferrocene 26.05.0](https://ferrous-systems.com/blog/ferrocene-26-05-0/)
+- [Ferrocene: qualified Rust toolchain](https://ferrocene.dev/) และ [Ferrocene 26.05.0](https://ferrous-systems.com/blog/ferrocene-26-05-0/)
 - [Supply chain attack on arrayref (Rust Blog, 20 ส.ค. 2026)](https://blog.rust-lang.org/2026/08/20/supply-chain-attack-on-arrayref/)
 - [JFrog: Compromised Rust crates on crates.io](https://research.jfrog.com/post/arrayref-proc-macro1-crates-io/), [StepSecurity: arrayref supply chain attack](https://www.stepsecurity.io/blog/arrayref-rust-crate-supply-chain-attack), [Wiz: arrayref และความเชื่อมโยงกับ DPRK](https://www.wiz.io/blog/rust-supply-chain-attack-on-arrayref-significant-overlap-with-dprk-campaigns)
 - [RustSec advisories: RUSTSEC-2026-0260](https://rustsec.org/advisories/RUSTSEC-2026-0260.html), [RUSTSEC-2026-0266](https://rustsec.org/advisories/RUSTSEC-2026-0266.html), [RUSTSEC-2026-0262](https://rustsec.org/advisories/RUSTSEC-2026-0262.html), [RUSTSEC-2026-0265](https://rustsec.org/advisories/RUSTSEC-2026-0265.html) และ [NVD CVE-2026-77649](https://nvd.nist.gov/vuln/detail/cve-2026-77649)
