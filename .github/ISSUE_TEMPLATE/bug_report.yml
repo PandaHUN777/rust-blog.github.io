@@ -1,0 +1,102 @@
+name: Bug report
+description: Something is not working as it should
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make rust-blog better. Please fill in the fields below.
+
+        rust-blog is a static, client-side app - everything is rendered in your
+        browser from a WASM binary, so browser and console details matter more
+        than usual. A post that never appears is often a build failure rather
+        than a runtime one; tell us where you saw it.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A short, clear description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the error message shown, if any.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      description: A failing build or test points at a different cause than a rendering bug.
+      options:
+        - Deployed site (https://rust-blog.github.io)
+        - Local `trunk serve`
+        - "`trunk build --release`"
+        - "`cargo test` / lint (fmt, clippy, audit, deny)"
+        - CI (GitHub Actions)
+        - Not applicable
+    validations:
+      required: true
+  - type: input
+    id: slug
+    attributes:
+      label: Post slug or URL
+      description: If the bug involves a specific post, which one?
+      placeholder: "e.g. /post/understanding-ownership"
+    validations:
+      required: false
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome / Chromium
+        - Firefox
+        - Safari
+        - Edge
+        - Other
+        - Not applicable
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. macOS 15, Windows 11, Ubuntu 24.04"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit / version
+      description: The commit or release you saw this on, plus the toolchain if building locally (from `rust-toolchain.toml`).
+      placeholder: "e.g. main @ 33aa0ee, Rust 1.98.0"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, console output, or screenshots
+      description: Paste browser console errors or build output. Screenshots help for rendering and theme issues. Never paste secrets or tokens.
+      render: text
+    validations:
+      required: false

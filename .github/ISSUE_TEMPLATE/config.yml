@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Development guide
+    url: https://github.com/rust-blog/rust-blog.github.io/blob/main/README.md
+    about: Build with Trunk, the content model, and how the site ships to GitHub Pages
+  - name: Roadmap & scope
+    url: https://github.com/rust-blog/rust-blog.github.io/blob/main/ROADMAP.md
+    about: Phases, acceptance criteria, and what is explicitly out of scope
