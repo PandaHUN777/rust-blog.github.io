@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   build:
+    name: Build site
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -76,11 +77,12 @@ jobs:
           path: dist
 
   deploy:
+    name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
+      pages: write # Publish the built site to the Pages environment.
+      id-token: write # Mint the OIDC token required by actions/deploy-pages.
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
