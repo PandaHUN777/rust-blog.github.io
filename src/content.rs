@@ -63,25 +63,6 @@ fn collect_files(dir: &Dir<'static>, out: &mut Vec<&File<'static>>) {
   }
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn loads_embedded_posts() {
-    let posts = load_posts();
-    assert!(
-      posts.len() >= 2,
-      "expected at least 2 embedded posts, found {}",
-      posts.len()
-    );
-    assert!(posts.iter().any(|p| p.slug == "welcome"));
-    assert!(posts.iter().any(|p| p.slug == "rust-variables"));
-    // newest first
-    assert!(posts[0].meta.date >= posts[1].meta.date);
-  }
-}
-
 /// Parse a single markdown file into a [`Post`].
 ///
 /// Uses the shared [`frontmatter::parse`] so the in-app render and the RSS
@@ -116,4 +97,23 @@ pub fn all_tags(posts: &[Post]) -> Vec<String> {
     .collect();
   tags.sort();
   tags
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn loads_embedded_posts() {
+    let posts = load_posts();
+    assert!(
+      posts.len() >= 2,
+      "expected at least 2 embedded posts, found {}",
+      posts.len()
+    );
+    assert!(posts.iter().any(|p| p.slug == "welcome"));
+    assert!(posts.iter().any(|p| p.slug == "rust-variables"));
+    // newest first
+    assert!(posts[0].meta.date >= posts[1].meta.date);
+  }
 }

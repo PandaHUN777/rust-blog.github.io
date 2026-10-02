@@ -268,7 +268,7 @@ mod tests {
   #[test]
   fn blank_line_after_delimiter_keeps_one_leading_newline() {
     let raw = "---\ntitle: \"Hello\"\ndate: \"2026-08-29\"\n---\n\nBody text";
-    assert_eq!(parse(&raw).unwrap().body, "\nBody text");
+    assert_eq!(parse(raw).unwrap().body, "\nBody text");
   }
 
   #[test]
@@ -341,7 +341,7 @@ mod tests {
   fn slug_override_survives_parse() {
     let raw = "---\ntitle: \"Hello\"\ndate: \"2026-08-29\"\nslug: \"custom-slug\"\n---\nBody";
     assert_eq!(
-      parse(&raw).unwrap().meta.slug.as_deref(),
+      parse(raw).unwrap().meta.slug.as_deref(),
       Some("custom-slug")
     );
   }
