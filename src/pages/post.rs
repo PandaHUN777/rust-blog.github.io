@@ -24,7 +24,7 @@ pub fn Post() -> impl IntoView {
     let posts = posts.clone();
     move |_| {
       let s = slug();
-      posts.iter().position(|p| p.slug == s).map(|idx| {
+      posts.iter().position(|p| p.slug.as_str() == s).map(|idx| {
         let current = posts[idx].clone();
         let related = posts
           .iter()
