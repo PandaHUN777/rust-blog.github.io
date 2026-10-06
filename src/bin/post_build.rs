@@ -17,6 +17,7 @@ use std::path::Path;
 
 use rust_blog::content::load_posts;
 use rust_blog::site;
+use rust_blog::xml;
 
 fn main() {
   let template = fs::read_to_string("dist/index.html")
@@ -25,7 +26,7 @@ fn main() {
   for post in load_posts() {
     let url = format!("{}/post/{}", site::SITE_URL, post.slug);
     let page = render(&template, &post.meta.title, &post.meta.description, &url);
-    let dir = Path::new("dist").join("post").join(&post.slug);
+    let dir = Path::new("dist").join("post").join(post.slug.as_str());
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("cannot create {}: {e}", dir.display()));
     let path = dir.join("index.html");
     fs::write(&path, page).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
@@ -54,7 +55,7 @@ fn set_title(html: &str, title: &str) -> String {
   let mut out = String::with_capacity(html.len() + 64);
   out.push_str(&html[..start]);
   out.push_str("<title>");
-  out.push_str(&escape_html(title));
+  out.push_str(&xml::escape(title));
   out.push_str(" - rust-blog");
   out.push_str(&html[end..]);
   out
@@ -82,26 +83,11 @@ fn set_meta(html: &str, kind: &str, name: &str, content: &str) -> String {
     let value_end = tag[value_start..].find('"').expect("content value closes") + value_start;
     let mut new_tag = String::with_capacity(tag.len() + 64);
     new_tag.push_str(&tag[..value_start]);
-    new_tag.push_str(&escape_html(content));
+    new_tag.push_str(&xml::escape(content));
     new_tag.push_str(&tag[value_end..]);
     out.push_str(&new_tag);
     rest = &rest[tag_end + 1..];
   }
   out.push_str(rest);
-  out
-}
-
-/// Minimal attribute-value escaping for HTML text.
-fn escape_html(s: &str) -> String {
-  let mut out = String::with_capacity(s.len() + 16);
-  for c in s.chars() {
-    match c {
-      '&' => out.push_str("&amp;"),
-      '"' => out.push_str("&quot;"),
-      '<' => out.push_str("&lt;"),
-      '>' => out.push_str("&gt;"),
-      _ => out.push(c),
-    }
-  }
   out
 }
