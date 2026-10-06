@@ -12,7 +12,7 @@ pub struct Frontmatter {
   pub tags: Vec<String>,
   pub author: Option<String>,
   pub draft: bool,
-  pub slug: Option<String>,
+  pub slug: Option<Slug>,
 }
 
 /// A successfully parsed post: frontmatter plus the markdown body with a
@@ -40,6 +40,8 @@ pub enum FrontmatterError {
   MissingDate,
   /// `date` is not a valid `YYYY-MM-DD` calendar date.
   InvalidDate(String),
+  /// The `slug` field (or file stem) is not a safe URL path segment.
+  InvalidSlug(String, SlugError),
 }
 
 impl std::fmt::Display for FrontmatterError {
@@ -61,11 +63,111 @@ impl std::fmt::Display for FrontmatterError {
           "`date` is not a valid YYYY-MM-DD calendar date: {date:?}"
         )
       }
+      FrontmatterError::InvalidSlug(slug, reason) => {
+        write!(f, "`slug` is not a safe URL slug ({reason}): {slug:?}")
+      }
     }
   }
 }
 
 impl std::error::Error for FrontmatterError {}
+
+/// A validated post slug.
+///
+/// A slug becomes both a URL path segment (`/post/<slug>`) and a directory
+/// name (`dist/post/<slug>/`), so only non-empty ASCII lowercase letters,
+/// digits, and hyphens are representable. Path separators, `.` (and thus
+/// `..`), whitespace, and the XML-special characters `&`, `<`, `>` cannot be
+/// constructed at all - path traversal and unescaped sitemap output are
+/// prevented by the type, not merely checked at each call site.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Slug(String);
+
+/// Why a string cannot become a [`Slug`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlugError {
+  /// Slugs must not be empty.
+  Empty,
+  /// Slugs must contain only `a-z`, `0-9`, and `-`.
+  InvalidCharacter(char),
+}
+
+impl Slug {
+  /// The slug as a string slice.
+  pub fn as_str(&self) -> &str {
+    &self.0
+  }
+
+  /// Validate `raw` as a slug.
+  pub fn new(raw: &str) -> Result<Self, SlugError> {
+    if raw.is_empty() {
+      return Err(SlugError::Empty);
+    }
+    match raw
+      .chars()
+      .find(|c| !matches!(c, 'a'..='z' | '0'..='9' | '-'))
+    {
+      Some(c) => Err(SlugError::InvalidCharacter(c)),
+      None => Ok(Self(raw.to_string())),
+    }
+  }
+}
+
+impl std::fmt::Display for SlugError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      SlugError::Empty => write!(f, "must not be empty"),
+      SlugError::InvalidCharacter(c) => {
+        write!(
+          f,
+          "must contain only lowercase ASCII letters, digits, and hyphens, found {c:?}"
+        )
+      }
+    }
+  }
+}
+
+impl std::error::Error for SlugError {}
+
+impl std::fmt::Display for Slug {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.write_str(&self.0)
+  }
+}
+
+impl std::str::FromStr for Slug {
+  type Err = SlugError;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Self::new(s)
+  }
+}
+
+impl AsRef<str> for Slug {
+  fn as_ref(&self) -> &str {
+    &self.0
+  }
+}
+
+impl std::ops::Deref for Slug {
+  type Target = str;
+
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+
+impl PartialEq<str> for Slug {
+  fn eq(&self, other: &str) -> bool {
+    self.0 == other
+  }
+}
+
+impl PartialEq<&str> for Slug {
+  fn eq(&self, other: &&str) -> bool {
+    self.0 == *other
+  }
+}
 
 /// Lenient YAML shape so the parser can distinguish "absent" from "invalid".
 #[derive(Debug, Deserialize)]
@@ -132,6 +234,11 @@ pub fn parse(raw: &str) -> Result<Parsed, FrontmatterError> {
   let mut seen = std::collections::HashSet::new();
   tags.retain(|t| seen.insert(t.clone()));
 
+  let slug = raw_meta
+    .slug
+    .map(|raw| Slug::new(&raw).map_err(|reason| FrontmatterError::InvalidSlug(raw, reason)))
+    .transpose()?;
+
   Ok(Parsed {
     meta: Frontmatter {
       title: raw_meta.title,
@@ -140,7 +247,7 @@ pub fn parse(raw: &str) -> Result<Parsed, FrontmatterError> {
       tags,
       author: raw_meta.author,
       draft: raw_meta.draft,
-      slug: raw_meta.slug,
+      slug,
     },
     body,
     warnings,
@@ -203,14 +310,16 @@ fn is_valid_iso_date(s: &str) -> bool {
   day <= days_in_month[(month - 1) as usize]
 }
 
-/// A post's URL slug: the frontmatter `slug` override, else the file stem.
-/// Shared by `build.rs` (RSS/sitemap) and `content.rs` (routing).
-pub fn derive_slug(meta: &Frontmatter, file_stem: Option<&str>) -> String {
-  meta
-    .slug
-    .clone()
-    .or_else(|| file_stem.map(str::to_string))
-    .unwrap_or_default()
+/// A post's URL slug: the frontmatter `slug` override (already validated by
+/// [`parse`]), else the validated file stem. Shared by `build.rs`
+/// (RSS/sitemap) and `content.rs` (routing, static pages), so the feed, the
+/// router, and `dist/post/<slug>/` can never disagree.
+pub fn derive_slug(meta: &Frontmatter, file_stem: Option<&str>) -> Result<Slug, FrontmatterError> {
+  if let Some(slug) = &meta.slug {
+    return Ok(slug.clone());
+  }
+  let stem = file_stem.unwrap_or_default();
+  Slug::new(stem).map_err(|reason| FrontmatterError::InvalidSlug(stem.to_string(), reason))
 }
 
 /// Advisory checks beyond the hard parse errors, in the same order every
@@ -343,6 +452,76 @@ mod tests {
     assert_eq!(
       parse(raw).unwrap().meta.slug.as_deref(),
       Some("custom-slug")
+    );
+  }
+
+  #[test]
+  fn rejects_unsafe_slugs() {
+    for bad in [
+      "",
+      "/tmp/rust-blog-poc",
+      "../../x",
+      "a/b",
+      "..",
+      "Upper",
+      "with space",
+      "under_score",
+      "a.b",
+      "a&b",
+      "a<b",
+      "ภาษาไทย",
+    ] {
+      let raw = format!("---\ntitle: \"Hello\"\ndate: \"2026-08-29\"\nslug: \"{bad}\"\n---\nBody");
+      assert!(
+        matches!(parse(&raw), Err(FrontmatterError::InvalidSlug(ref s, _)) if s == bad),
+        "slug {bad:?} must be rejected"
+      );
+    }
+  }
+
+  #[test]
+  fn accepts_safe_slugs() {
+    for good in ["welcome", "cargo-deny", "post-2", "123", "a"] {
+      let raw = format!("---\ntitle: \"Hello\"\ndate: \"2026-08-29\"\nslug: \"{good}\"\n---\nBody");
+      let slug = parse(&raw).unwrap().meta.slug.expect("slug survives parse");
+      assert_eq!(slug, good);
+    }
+  }
+
+  #[test]
+  fn slug_from_str_uses_the_same_rule() {
+    assert_eq!(
+      "cargo-deny".parse::<Slug>().unwrap(),
+      Slug::new("cargo-deny").unwrap()
+    );
+    assert!("Cargo".parse::<Slug>().is_err());
+  }
+
+  #[test]
+  fn derive_slug_validates_the_file_stem() {
+    let no_override = meta("2026-08-29", &[], false);
+    assert_eq!(
+      derive_slug(&no_override, Some("Bad_Name")).unwrap_err(),
+      FrontmatterError::InvalidSlug("Bad_Name".to_string(), SlugError::InvalidCharacter('B'))
+    );
+    assert_eq!(
+      derive_slug(&no_override, Some("good-name")).unwrap(),
+      Slug::new("good-name").unwrap()
+    );
+    assert_eq!(
+      derive_slug(&no_override, None).unwrap_err(),
+      FrontmatterError::InvalidSlug(String::new(), SlugError::Empty)
+    );
+  }
+
+  #[test]
+  fn derive_slug_prefers_the_validated_override() {
+    let raw = "---\ntitle: \"Hello\"\ndate: \"2026-08-29\"\nslug: \"chosen\"\n---\nBody";
+    let parsed = parse(raw).unwrap();
+    // The override wins even when the file stem would fail validation.
+    assert_eq!(
+      derive_slug(&parsed.meta, Some("Bad Stem!")).unwrap(),
+      Slug::new("chosen").unwrap()
     );
   }
 

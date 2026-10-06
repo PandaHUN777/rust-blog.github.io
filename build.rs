@@ -8,6 +8,9 @@ mod frontmatter;
 #[allow(dead_code)]
 mod site;
 
+#[path = "src/xml.rs"]
+mod xml;
+
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs;
@@ -20,7 +23,7 @@ use rss::{CategoryBuilder, ChannelBuilder, Guid, ItemBuilder};
 struct Published {
   path: PathBuf,
   meta: frontmatter::Frontmatter,
-  slug: String,
+  slug: frontmatter::Slug,
 }
 
 fn main() {
@@ -60,13 +63,31 @@ fn main() {
       }
     }
     let stem = path.file_stem().map(|s| s.to_string_lossy());
-    let slug = frontmatter::derive_slug(&parsed.meta, stem.as_deref());
+    // A slug becomes a URL path segment and a directory name, so an unsafe
+    // one (absolute, `..`, separators) fails the build instead of escaping
+    // `dist/` or corrupting the sitemap.
+    let slug = frontmatter::derive_slug(&parsed.meta, stem.as_deref())
+      .unwrap_or_else(|e| panic!("invalid post slug in {}: {e}", path.display()));
     if !parsed.meta.draft {
       posts.push(Published {
         path,
         meta: parsed.meta,
         slug,
       });
+    }
+  }
+
+  // Two published posts sharing a slug would silently overwrite the same
+  // dist/post/<slug>/ page and emit duplicate RSS/sitemap URLs; fail loudly.
+  let mut seen: HashMap<&str, &Path> = HashMap::new();
+  for post in &posts {
+    if let Some(previous) = seen.insert(post.slug.as_str(), &post.path) {
+      panic!(
+        "duplicate post slug `{}`: {} and {}",
+        post.slug,
+        previous.display(),
+        post.path.display()
+      );
     }
   }
 
@@ -136,25 +157,26 @@ fn write(manifest: &str, name: &str, contents: &str) {
 }
 
 /// `sitemap.xml`: home, about, and every published post with its date.
+///
+/// Every interpolated value is XML-escaped. Slugs are already restricted to
+/// `[a-z0-9-]` by the type system, but the sitemap must not depend on an
+/// invariant defined in another module to stay well-formed.
 fn write_sitemap(manifest: &str, posts: &[Published]) {
-  let mut xml = String::from(
+  let mut out = String::from(
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n",
   );
-  xml.push_str(&format!("  <url><loc>{}/</loc></url>\n", site::SITE_URL));
-  xml.push_str(&format!(
-    "  <url><loc>{}/about</loc></url>\n",
-    site::SITE_URL
-  ));
+  let root = xml::escape(site::SITE_URL);
+  out.push_str(&format!("  <url><loc>{root}/</loc></url>\n"));
+  out.push_str(&format!("  <url><loc>{root}/about</loc></url>\n"));
   for post in posts {
-    xml.push_str(&format!(
-      "  <url><loc>{}/post/{}</loc><lastmod>{}</lastmod></url>\n",
-      site::SITE_URL,
-      post.slug,
-      post.meta.date
+    out.push_str(&format!(
+      "  <url><loc>{root}/post/{}</loc><lastmod>{}</lastmod></url>\n",
+      xml::escape(post.slug.as_str()),
+      xml::escape(&post.meta.date)
     ));
   }
-  xml.push_str("</urlset>\n");
-  write(manifest, "sitemap.xml", &xml);
+  out.push_str("</urlset>\n");
+  write(manifest, "sitemap.xml", &out);
 }
 
 /// `robots.txt`: everything is crawlable; point crawlers at the sitemap.
