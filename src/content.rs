@@ -1,4 +1,4 @@
-use crate::frontmatter::{self, Frontmatter};
+use crate::frontmatter::{self, Frontmatter, Slug};
 use crate::markdown;
 use include_dir::{Dir, File, include_dir};
 
@@ -13,7 +13,7 @@ static POSTS_DIR: Dir = include_dir!("content/posts");
 /// A fully processed blog post, ready to render.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Post {
-  pub slug: String,
+  pub slug: Slug,
   pub meta: Frontmatter,
   /// Raw markdown body (kept for RSS / future use).
   pub body: String,
@@ -72,7 +72,7 @@ fn parse_post(raw: &str, path: &std::path::Path) -> Option<Post> {
   let parsed = frontmatter::parse(raw).ok()?;
 
   let stem = path.file_stem().map(|s| s.to_string_lossy());
-  let slug = frontmatter::derive_slug(&parsed.meta, stem.as_deref());
+  let slug = frontmatter::derive_slug(&parsed.meta, stem.as_deref()).ok()?;
 
   let html = markdown::render(&parsed.body);
   let reading_time =
@@ -115,5 +115,18 @@ mod tests {
     assert!(posts.iter().any(|p| p.slug == "rust-variables"));
     // newest first
     assert!(posts[0].meta.date >= posts[1].meta.date);
+  }
+
+  #[test]
+  fn embedded_slugs_are_unique() {
+    let posts = load_posts();
+    let mut seen = std::collections::HashSet::new();
+    for post in &posts {
+      assert!(
+        seen.insert(post.slug.as_str()),
+        "duplicate post slug `{}` - two posts would overwrite the same dist/post/<slug>/ page",
+        post.slug
+      );
+    }
   }
 }

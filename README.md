@@ -93,7 +93,8 @@ One folder, one binary, a quiet set of honest services.
 **The core ceremony** - publishing a post:
 
 1. Write the markdown with its frontmatter: title, date, description,
-   tags - `draft: true` hides it until it is ready.
+   tags - `draft: true` hides it until it is ready. The optional `slug`
+   override must be lowercase ASCII letters, digits, and hyphens only.
 2. Drop the file into `content/posts/`. That is the whole deployment.
 3. The build picks it up: home page, filtering, tags, and the RSS
    feed update together.
